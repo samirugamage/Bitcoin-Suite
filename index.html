@@ -1,0 +1,970 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BTC Tools — Fees • PnL • Seasonal • Prices</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#0e1622; --card:#121a27; --ink:#ffffff; --muted:#c8d4e6;
+    --accent:#5aa9ff; --ok:#66d38f; --warn:#ffd166; --err:#ff6b6b;
+    --border:rgba(255,255,255,.12); --panel-alpha:rgba(8,12,18,.92);
+    --chart-bg:#0f1520; --shadow:rgba(0,0,0,0.35); --glass:rgba(255,255,255,.06);
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f8fc; --panel:#ffffff; --card:#ffffff; --ink:#0b1525; --muted:#4a5a70;
+    --accent:#1a5fb8; --ok:#189c63; --warn:#b08b00; --err:#c33b3b;
+    --border:rgba(0,0,0,.10); --panel-alpha:rgba(255,255,255,.95);
+    --chart-bg:#ffffff; --shadow:rgba(0,0,0,0.12); --glass:rgba(0,0,0,.03);
+  }
+  *{box-sizing:border-box}
+  html,body,#root{height:100%}
+  body{margin:0;color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;background:var(--bg);overflow:hidden}
+  a{color:var(--accent);text-decoration:none}
+
+  .bg-anim{position:fixed;inset:-20vmax;background:
+    radial-gradient(42vmax 42vmax at 12% 18%, rgba(59,130,246,.28), transparent 60%),
+    radial-gradient(50vmax 50vmax at 90% -8%, rgba(16,185,129,.22), transparent 62%),
+    radial-gradient(60vmax 54vmax at 58% 118%, rgba(99,102,241,.18), transparent 70%);
+    filter:saturate(115%);animation:bgShift 34s linear infinite alternate;z-index:0;pointer-events:none}
+  @keyframes bgShift{0%{transform:translate3d(0,0,0) scale(1)}100%{transform:translate3d(-2%,-3%,0) scale(1.03)}}
+
+  .app{position:relative;display:grid;grid-template-columns:280px 1fr;grid-template-rows:56px 1fr;grid-template-areas:"side top" "side main";height:100%}
+  .topbar{grid-area:top;display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--panel-alpha);border-bottom:1px solid var(--border);backdrop-filter:blur(10px) saturate(120%);z-index:10}
+  .hamb{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--glass);color:var(--ink);display:grid;place-items:center;cursor:pointer}
+  .spacer{flex:1}
+  .controls{display:flex;align-items:center;gap:8px}
+  select,input[type="number"],input[type="time"],input[type="date"],input[type="text"]{
+    padding:10px 12px;border-radius:12px;border:1px solid var(--border);
+    background:color-mix(in srgb,var(--card) 92%,#000 8%);color:var(--ink);outline:none
+  }
+  select:focus,input:focus{box-shadow:0 0 0 3px rgba(90,169,255,.25)}
+  .switch{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+
+  .sidebar{grid-area:side;background:linear-gradient(180deg,var(--glass),transparent),var(--panel);border-right:1px solid var(--border);padding:12px;overflow:auto;transform:translateX(0);transition:transform .25s ease;z-index:11}
+  .sidebar.collapsed{transform:translateX(-100%)}
+  .side-brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.2px;margin-bottom:12px}
+  .dot{width:10px;height:10px;border-radius:999px;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+  .side-group{margin:10px 0 6px;color:var(--muted);font-size:12px}
+  .navbtn{width:100%;text-align:left;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--glass);color:var(--ink);cursor:pointer;margin-bottom:8px;transition:transform .15s ease,box-shadow .15s ease,background .2s}
+  .navbtn:hover{transform:translateY(-1px);box-shadow:0 10px 24px var(--shadow)}
+  .navbtn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  .main{grid-area:main;position:relative;overflow:auto;z-index:1}
+  .wrap{max-width:1200px;margin:0 auto;padding:14px}
+  h1{margin:6px 0 6px;font-size:clamp(18px,3vw,28px)}
+  p.lead{margin:0 0 12px;color:var(--muted)}
+
+  .grid{display:grid;grid-template-columns:1fr;gap:14px}
+  @media(min-width:980px){.grid{grid-template-columns:1.1fr 1fr}}
+
+  .card{border:1px solid var(--border);border-radius:18px;background:linear-gradient(180deg,var(--glass),transparent),var(--card);box-shadow:0 16px 40px var(--shadow);transform:translateY(6px) scale(.985);opacity:0;animation:cardIn .5s ease forwards}
+  .pad{padding:14px}
+  @keyframes cardIn{to{transform:translateY(0) scale(1);opacity:1}}
+  .btn{padding:9px 12px;border-radius:12px;background:color-mix(in srgb,var(--card) 90%,#000 10%);color:var(--ink);border:1px solid var(--border);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background .2s}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 10px 24px var(--shadow)}
+  .btn:active{transform:translateY(0)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .chip{padding:7px 11px;border-radius:999px;border:1px solid var(--border);background:color-mix(in srgb,var(--card) 92%,#000 8%);cursor:pointer;transition:transform .15s ease,background .2s;margin:0 6px 6px 0}
+  .chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:540px){.row{grid-template-columns:1fr}}
+  .kv{display:flex;align-items:baseline;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--border)}
+  .kv:last-child{border-bottom:0}
+  .k{color:var(--muted)}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace}
+  .skeleton{position:relative;overflow:hidden;background:color-mix(in srgb,var(--card) 92%,#000 8%)}
+  .skeleton::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.18),transparent);transform:translateX(-100%);animation:shimmer 1.2s linear infinite;mix-blend-mode:overlay}
+  @keyframes shimmer{to{transform:translateX(100%)}}
+
+  .status{margin-top:12px;padding:10px;border-radius:12px;background:var(--chart-bg);border:1px solid var(--border)}
+  .status li{margin:2px 0}
+  .err{color:var(--err)}
+  .chartwrap{background:var(--chart-bg);border:1px solid var(--border);border-radius:16px;overflow:hidden;padding:8px}
+
+  .table{width:100%;border-collapse:collapse}
+  .table th,.table td{border-bottom:1px dashed var(--border);padding:8px 6px;text-align:right;vertical-align:top}
+  .table th:first-child,.table td:first-child{text-align:left}
+  .pill{padding:2px 8px;border-radius:999px;font-size:12px;display:inline-block}
+  .gain{background:rgba(102,211,143,.18);color:#bff3d3;border:1px solid rgba(102,211,143,.35)}
+  .loss{background:rgba(255,107,107,.20);color:#ffd1d1;border:1px solid rgba(255,107,107,.35)}
+  :root[data-theme="light"] .gain{color:#0c5a35}
+  :root[data-theme="light"] .loss{color:#7a1e1e}
+  .muted{color:var(--muted)}
+</style>
+</head>
+<body>
+  <div class="bg-anim"></div>
+  <div id="root"></div>
+
+  <!-- React -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Charts libs -->
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="https://s3.tradingview.com/tv.js"></script>
+
+  <script>
+  const {useState,useEffect,useMemo,useRef} = React;
+  const FIATS = ['LKR','USD','USDT','SGD','AUD','EUR','GBP','INR','HKD','JPY'];
+  const fmtNum0 = new Intl.NumberFormat(undefined,{maximumFractionDigits:0});
+  const fmtUsd  = new Intl.NumberFormat(undefined,{style:'currency', currency:'USD', maximumFractionDigits:2});
+  const fmtCur  = c => new Intl.NumberFormat(undefined,{style:'currency', currency:c, maximumFractionDigits:2});
+  const toISODate = d => /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : new Date(d).toISOString().slice(0,10);
+  function shiftISO(dateISO, days){
+    const [y,m,d] = dateISO.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + days));
+    const yy = dt.getUTCFullYear();
+    const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getUTCDate()).padStart(2, '0');
+    return `${yy}-${mm}-${dd}`;
+  }
+
+  const mapKeysUpper = obj => {
+    if(!obj || typeof obj!=='object') return obj;
+    const out = {};
+    for(const k of Object.keys(obj)) out[k.toUpperCase()] = obj[k];
+    return out;
+  };
+  async function firstOk(fns){
+    for(const fn of fns){
+      try{ const v = await fn(); if(v && (typeof v==='number' || typeof v==='object')) return v; }catch(_){}
+    }
+    return null;
+  }
+  const proxWrap = (useProxy) => (url) => useProxy ? `https://corsproxy.io/?${encodeURIComponent(url)}` : url;
+  const color = (varName) => getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+
+  // Live data for fees, BTC, and FX
+  function useLiveData(useProxy){
+    const [btcUsd,setBtcUsd]   = useState(null);
+    const [usdRates,setUsd]    = useState(null);
+    const [fees,setFees]       = useState(null);
+    const [updated,setUpdated] = useState('');
+    const [status,setStatus]   = useState([]);
+    const prox = url => useProxy ? `https://corsproxy.io/?${encodeURIComponent(url)}` : url;
+
+    const refresh = async ()=>{
+      const msgs = [];
+      try{
+        const u = await firstOk([
+          () => fetch(prox('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'), {cache:'no-store'}).then(r=>r.json()).then(j=>parseFloat(j?.price)),
+          () => fetch(prox('https://api.coinbase.com/v2/prices/BTC-USD/spot'), {cache:'no-store'}).then(r=>r.json()).then(j=>parseFloat(j?.data?.amount)),
+        ]);
+        u ? setBtcUsd(u) : msgs.push('BTC price fetch failed');
+      }catch{ msgs.push('BTC price error') }
+
+      try{
+        const fx = await firstOk([
+          () => fetch(prox('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json'), {cache:'no-store'}).then(r=>r.json()).then(j=>mapKeysUpper(j?.usd)),
+          () => fetch(prox('https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/usd.json'), {cache:'no-store'}).then(r=>r.json()).then(j=>mapKeysUpper(j?.usd)),
+          () => fetch(prox('https://api.exchangerate.host/latest?base=USD'), {cache:'no-store'}).then(r=>r.json()).then(j=>j?.rates),
+          () => fetch(prox('https://open.er-api.com/v6/latest/USD'), {cache:'no-store'}).then(r=>r.json()).then(j=>j?.rates),
+        ]);
+        fx ? setUsd(fx) : msgs.push('FX fetch failed');
+      }catch{ msgs.push('FX error') }
+
+      try{
+        const fe = await firstOk([
+          () => fetch(prox('https://mempool.space/api/v1/fees/recommended'), {cache:'no-store'}).then(r=>r.json()),
+          async () => {
+            const j = await fetch(prox('https://blockstream.info/api/fee-estimates'), {cache:'no-store'}).then(r=>r.json());
+            const f1 = Math.ceil(j['1']||1), f3 = Math.ceil(j['3']||f1), f6 = Math.ceil(j['6']||f3), f12 = Math.ceil(j['12']||f6);
+            const min = Math.max(1, Math.min(f12,f6,f3,f1));
+            return {fastestFee:f1, halfHourFee:f3, hourFee:f6, economyFee:f12, minimumFee:min};
+          }
+        ]);
+        fe ? setFees(fe) : msgs.push('Fees fetch failed');
+      }catch{ msgs.push('Fees error') }
+
+      setUpdated(new Date().toLocaleString());
+      setStatus(msgs);
+    };
+
+    useEffect(()=>{ refresh(); const id=setInterval(refresh, 60_000); return ()=>clearInterval(id); }, [useProxy]);
+    return { btcUsd, usdRates, fees, updated, status, refresh, prox };
+  }
+
+  // Fee calculator with P2P + exchange + network estimator
+  function FeeCalculator({fiat, btcUsd, usdRates, fees, refresh, updated}){
+    const [satVb,setSatVb] = useState('');
+    const [vbytes,setVbytes] = useState('180');
+    const [mode,setMode] = useState('halfhour');
+    const [amountSentFiat,setAmountSentFiat] = useState('');
+
+    // P2P + exchange estimator
+    const [estAmountFiat,setEstAmountFiat] = useState('');
+    const [estP2PUnit,setEstP2PUnit] = useState('');         // fiat per 1 USDT
+    const [estP2PFeePct,setEstP2PFeePct] = useState('0');    // %
+    const [estExFeePct,setEstExFeePct] = useState('0');      // %
+    const [estExFixedUSDT,setEstExFixedUSDT] = useState(''); // fixed USDT fee
+
+    const usdToFiat = useMemo(()=>{
+      if(fiat==='USDT' || fiat==='USD') return 1;
+      return usdRates ? usdRates[fiat] : null;
+    }, [usdRates, fiat]);
+
+    useEffect(()=>{
+      if(!fees) return;
+      const map = {fastest:'fastestFee', halfhour:'halfHourFee', hour:'hourFee', economy:'economyFee', minimum:'minimumFee'};
+      if(mode!=='custom') setSatVb(String(fees[map[mode]] ?? ''));
+    }, [fees, mode]);
+
+    const btcToFiatRate = useMemo(()=> (btcUsd && usdToFiat!=null) ? btcUsd*usdToFiat : null, [btcUsd, usdToFiat]);
+    const ffmt = useMemo(()=> fmtCur(fiat==='USDT'?'USD':fiat), [fiat]);
+
+    const s = parseFloat(satVb), vb = parseFloat(vbytes);
+    const feeSats = (isFinite(s)&&isFinite(vb)) ? s*vb : null;
+    const feeBtc  = feeSats!=null ? feeSats/1e8 : null;
+    const feeFiat = (feeBtc!=null && btcToFiatRate!=null) ? feeBtc*btcToFiatRate : null;
+    const fiatPerByte = (isFinite(s) && btcToFiatRate!=null) ? (s*btcToFiatRate)/1e8 : null;
+
+    const amtSent = parseFloat(amountSentFiat||'');
+    const feePctOfAmount = (feeFiat!=null && isFinite(amtSent) && amtSent>0) ? (feeFiat/amtSent)*100 : null;
+
+    // Acquisition estimator math
+    const p2pUnit = parseFloat(estP2PUnit||'');          // fiat per USDT
+    const p2pFee = Math.max(0, parseFloat(estP2PFeePct||'0')/100);
+    const exFeePct = Math.max(0, parseFloat(estExFeePct||'0')/100);
+    const exFixed = Math.max(0, parseFloat(estExFixedUSDT||'0'));
+    const estAmt = parseFloat(estAmountFiat||'');
+
+    let est = null;
+    if(isFinite(estAmt) && estAmt>0 && isFinite(p2pUnit) && p2pUnit>0 && btcUsd){
+      const usdtGross = estAmt / p2pUnit;
+      const usdtAfterP2P = usdtGross * (1 - p2pFee);
+      const usdtAfterEx = usdtAfterP2P * (1 - exFeePct) - exFixed;
+      const btcGross = usdtAfterEx / btcUsd;
+      const netBtc = Math.max(0, btcGross - (feeBtc||0));
+      const networkFiat = (feeBtc!=null && btcToFiatRate!=null) ? feeBtc*btcToFiatRate : null;
+      const netFiatValue = (btcToFiatRate!=null) ? netBtc*btcToFiatRate : null;
+      const effectiveEntry = (netBtc>0 && isFinite(estAmt)) ? estAmt/netBtc : null;
+      const totalFeesFiat = (isFinite(estAmt) && netFiatValue!=null) ? (estAmt - netFiatValue) : null;
+      est = {usdtGross,usdtAfterP2P,usdtAfterEx,btcGross,netBtc,networkFiat,effectiveEntry,totalFeesFiat,netFiatValue};
+    }
+
+    return (
+      React.createElement('div',{className:'grid'},
+        React.createElement('section',{className:'card'},
+          React.createElement('div',{className:'pad'},
+            React.createElement('h2',null,'Live data'),
+            React.createElement('div',{className:'row'},
+              React.createElement('div',null,
+                React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},'BTC price'),React.createElement('div',{className:'v mono'}, btcUsd? fmtUsd.format(btcUsd)+' / BTC':React.createElement('span',{className:'skeleton',style:{display:'inline-block',width:'140px',height:'1em'}}))),
+                React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},'USD → ',React.createElement('span',{className:'mono'},fiat)),React.createElement('div',{className:'v mono'}, usdToFiat!=null? ffmt.format(usdToFiat):React.createElement('span',{className:'skeleton',style:{display:'inline-block',width:'120px',height:'1em'}}))),
+                React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},'BTC → ',React.createElement('span',{className:'mono'},fiat)),React.createElement('div',{className:'v mono'}, (btcToFiatRate!=null)? ffmt.format(btcToFiatRate)+' / BTC':React.createElement('span',{className:'skeleton',style:{display:'inline-block',width:'160px',height:'1em'}})))
+              ),
+              React.createElement('div',null,
+                ['fastestFee','halfHourFee','hourFee','economyFee','minimumFee'].map((key,i)=>
+                  React.createElement('div',{key:i,className:'kv'},
+                    React.createElement('div',{className:'k'}, i===0?'Fastest':i===1?'~30 min':i===2?'~60 min':i===3?'Economy':'Minimum'),
+                    React.createElement('div',{className:'v mono'}, fees? fmtNum0.format(fees[key])+' sat/vB':React.createElement('span',{className:'skeleton',style:{display:'inline-block',width:'90px',height:'1em'}}))
+                  )
+                )
+              )
+            ),
+            React.createElement('div',{className:'row',style:{marginTop:10}},
+              React.createElement('div',{className:'small',style:{color:'var(--muted)'}},'Updated ',React.createElement('span',{className:'mono'},updated||'…')),
+              React.createElement('div',{style:{textAlign:'right'}},React.createElement('button',{className:'btn',onClick:refresh},'Refresh'))
+            )
+          )
+        ),
+
+        React.createElement('section',{className:'card'},
+          React.createElement('div',{className:'pad'},
+            React.createElement('h2',null,'Network fee calculator'),
+            React.createElement('div',null,
+              ['fastest','halfhour','hour','economy','minimum','custom'].map(m =>
+                React.createElement('button',{key:m,className:'chip '+(m===mode?'active':''),onClick:()=>setMode(m)}, m==='halfhour'?'~30 min':m==='hour'?'~60 min':m[0].toUpperCase()+m.slice(1))
+              )
+            ),
+            React.createElement('div',{className:'row',style:{marginTop:12}},
+              React.createElement('div',null,React.createElement('label',{htmlFor:'satVb'},'Fee rate (sat/vB)'),React.createElement('input',{id:'satVb',type:'number',inputMode:'decimal',min:'0',step:'0.01',value:satVb,onChange:e=>setSatVb(e.target.value),placeholder:'e.g. 12'})),
+              React.createElement('div',null,React.createElement('label',{htmlFor:'vbytes'},'Tx size (vB)'),React.createElement('input',{id:'vbytes',type:'number',inputMode:'numeric',min:'0',step:'1',value:vbytes,onChange:e=>setVbytes(e.target.value),placeholder:'e.g. 180'}))
+            ),
+            React.createElement('div',{className:'row',style:{marginTop:8}},
+              React.createElement('div',null,React.createElement('label',null,`Optional: total amount sent (${fiat})`),React.createElement('input',{type:'number',inputMode:'decimal',value:amountSentFiat,onChange:e=>setAmountSentFiat(e.target.value),placeholder:'e.g. 150000'})),
+              React.createElement('div',null)
+            ),
+            React.createElement('div',{className:'pad',style:{padding:'12px 0 0'}},
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},fiat,' per byte'),React.createElement('div',{className:'v mono'}, (fiatPerByte!=null)? fmtCur(fiat==='USDT'?'USD':fiat).format(fiatPerByte):'—')),
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},'Fee total (sats)'),React.createElement('div',{className:'v mono'}, feeSats!=null? fmtNum0.format(feeSats)+' sats':'—')),
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},'Fee total (BTC)'),React.createElement('div',{className:'v mono'}, feeBtc!=null? new Intl.NumberFormat(undefined,{maximumFractionDigits:8}).format(feeBtc)+' BTC':'—')),
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},`Fee total (${fiat})`),React.createElement('div',{className:'v mono'}, feeFiat!=null? fmtCur(fiat==='USDT'?'USD':fiat).format(feeFiat):'—')),
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},'Fee percent of amount'),React.createElement('div',{className:'v mono'}, (feePctOfAmount!=null)? feePctOfAmount.toFixed(2)+'%':'—'))
+            )
+          )
+        ),
+
+        React.createElement('section',{className:'card'},
+          React.createElement('div',{className:'pad'},
+            React.createElement('h2',null,'Acquisition estimator (P2P → exchange → hot wallet)'),
+            React.createElement('div',{className:'row'},
+              React.createElement('div',null,React.createElement('label',null,`Amount paid (${fiat})`),React.createElement('input',{type:'number',inputMode:'decimal',value:estAmountFiat,onChange:e=>setEstAmountFiat(e.target.value),placeholder:'e.g. 150000'})),
+              React.createElement('div',null,React.createElement('label',null,`P2P unit price (${fiat}/USDT)`),React.createElement('input',{type:'number',inputMode:'decimal',value:estP2PUnit,onChange:e=>setEstP2PUnit(e.target.value),placeholder:'e.g. 350'}))
+            ),
+            React.createElement('div',{className:'row',style:{marginTop:8}},
+              React.createElement('div',null,React.createElement('label',null,'P2P fee %'),React.createElement('input',{type:'number',inputMode:'decimal',value:estP2PFeePct,onChange:e=>setEstP2PFeePct(e.target.value),placeholder:'0.5'})),
+              React.createElement('div',null,React.createElement('label',null,'Exchange fee %'),React.createElement('input',{type:'number',inputMode:'decimal',value:estExFeePct,onChange:e=>setEstExFeePct(e.target.value),placeholder:'0.1'}))
+            ),
+            React.createElement('div',{className:'row',style:{marginTop:8}},
+              React.createElement('div',null,React.createElement('label',null,'Exchange fixed fee (USDT)'),React.createElement('input',{type:'number',inputMode:'decimal',value:estExFixedUSDT,onChange:e=>setEstExFixedUSDT(e.target.value),placeholder:'e.g. 2'})),
+              React.createElement('div',null,React.createElement('label',null,'Network fee uses calculator inputs above'),React.createElement('div',{className:'mono',style:{color:'var(--muted)'}}, satVb && vbytes ? `${satVb} sat/vB × ${vbytes} vB` : 'Enter sat/vB and vB'))
+            ),
+            est ? React.createElement('div',{className:'pad',style:{paddingTop:10}},
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},'USDT bought (gross)'),React.createElement('div',{className:'v mono'}, est.usdtGross.toFixed(2)+' USDT')),
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},'After P2P fee'),React.createElement('div',{className:'v mono'}, est.usdtAfterP2P.toFixed(2)+' USDT')),
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},'After exchange fee'),React.createElement('div',{className:'v mono'}, est.usdtAfterEx.toFixed(2)+' USDT')),
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},'BTC before network fee'),React.createElement('div',{className:'v mono'}, est.btcGross.toFixed(8)+' BTC')),
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},'Network fee'),React.createElement('div',{className:'v mono'}, feeBtc!=null ? `${feeBtc.toFixed(8)} BTC  ·  ${(est.networkFiat!=null)? fmtCur(fiat==='USDT'?'USD':fiat).format(est.networkFiat):'—'}` : '—')),
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},'BTC to hot wallet (net)'),React.createElement('div',{className:'v mono'}, est.netBtc.toFixed(8)+' BTC')),
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},`Net value now (${fiat})`),React.createElement('div',{className:'v mono'}, (est.netFiatValue!=null)? fmtCur(fiat==='USDT'?'USD':fiat).format(est.netFiatValue):'—')),
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},`Effective entry (${fiat}/BTC)`),React.createElement('div',{className:'v mono'}, (est.effectiveEntry!=null)? fmtCur(fiat==='USDT'?'USD':fiat).format(est.effectiveEntry):'—')),
+              React.createElement('div',{className:'kv'},React.createElement('div',{className:'k'},`Total fees vs paid (${fiat})`),React.createElement('div',{className:'v mono'}, (est.totalFeesFiat!=null)? fmtCur(fiat==='USDT'?'USD':fiat).format(est.totalFeesFiat):'—'))
+            ) : null
+          )
+        )
+      )
+    );
+  }
+
+  // PnL tool
+  function PnlTool({btcUsd, usdRates, prox}){
+    const [records, setRecords] = useState([]);
+    const [form, setForm] = useState({ amount:'', currency:'LKR', date:'', time:'', feePct:'' });
+    const [busy, setBusy] = useState(false);
+
+    function addRecord(){
+      if(!form.amount || !form.date){ alert('Enter amount and a date. Time is optional.'); return; }
+      const id = Date.now()+Math.random();
+      setRecords(r => [...r, { id, ...form, status:'pending' }]);
+      setForm({ amount:'', currency:form.currency, date:'', time:'', feePct:'' });
+    }
+    function clearAll(){ setRecords([]); }
+
+    async function fxOnDate(dateISO, currency){
+      if(currency === 'USD' || currency === 'USDT') return { rate:1, src:'USD peg', usedDate:dateISO, url:'' };
+      const curLower = currency.toLowerCase();
+
+      async function tryJson(url, pick, srcLabel, usedDate){
+        try{
+          const r = await fetch(prox(url), { cache:'no-store' });
+          if (!r.ok) return null;
+          const j = await r.json();
+          const v = pick(j);
+          return (v && v>0) ? { rate:v, src:srcLabel, usedDate, url } : null;
+        }catch(_){ return null; }
+      }
+
+      let out = await tryJson(
+        `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${dateISO}/v1/currencies/usd.json`,
+        j => j?.usd?.[curLower], 'npm-daily-all', dateISO
+      );
+      if(out) return out;
+      for(let back=1; back<=10; back++){
+        const d = shiftISO(dateISO, -back);
+        out = await tryJson(
+          `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${d}/v1/currencies/usd.json`,
+          j => j?.usd?.[curLower], 'npm-daily-all', d
+        );
+        if(out) return out;
+      }
+
+      out = await tryJson(
+        `https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/${dateISO}/currencies/usd/${curLower}.json`,
+        j => j?.[curLower], 'gh-daily-single', dateISO
+      );
+      if(out) return out;
+      out = await tryJson(
+        `https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/${dateISO}/currencies/usd.json`,
+        j => j?.usd?.[curLower], 'gh-daily-all', dateISO
+      );
+      if(out) return out;
+      for(let back=1; back<=10; back++){
+        const d = shiftISO(dateISO, -back);
+        out = await tryJson(
+          `https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/${d}/currencies/usd.json`,
+          j => j?.usd?.[curLower], 'gh-daily-all', d
+        );
+        if(out) return out;
+        out = await tryJson(
+          `https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/${d}/currencies/usd/${curLower}.json`,
+          j => j?.[curLower], 'gh-daily-single', d
+        );
+        if(out) return out;
+      }
+
+      try{
+        const url1 = `https://api.exchangerate.host/timeseries?base=USD&symbols=${currency}&start_date=${dateISO}&end_date=${dateISO}`;
+        const r1 = await fetch(prox(url1), { cache:'no-store' });
+        if (r1.ok) {
+          const j1 = await r1.json();
+          const v1 = j1?.rates?.[dateISO]?.[currency];
+          if (v1 && v1 > 0) return { rate:v1, src:'exchangerate.host-daily', usedDate:dateISO, url:url1 };
+        }
+      }catch(_){}
+      try{
+        const url2 = `https://api.exchangerate.host/latest?base=USD&symbols=${currency}`;
+        const r2 = await fetch(prox(url2), { cache:'no-store' });
+        if (r2.ok) {
+          const j2 = await r2.json();
+          const v2 = j2?.rates?.[currency];
+          if (v2 && v2 > 0) return { rate:v2, src:'exchangerate.host-latest', usedDate:dateISO, url:url2 };
+        }
+      }catch(_){}
+      try{
+        const url3 = `https://open.er-api.com/v6/latest/USD`;
+        const r3 = await fetch(prox(url3), { cache:'no-store' });
+        if (r3.ok){
+          const j3 = await r3.json();
+          const v3 = j3?.rates?.[currency];
+          if (v3 && v3 > 0) return { rate:v3, src:'er-api latest', usedDate:dateISO, url:url3 };
+        }
+      }catch(_){}
+
+      return null;
+    }
+
+    async function btcPriceNear(tsMs){
+      async function fetchK(url){
+        try{
+          const r = await fetch(prox(url), {cache:'no-store'});
+          if(!r.ok) return null;
+          const j = await r.json();
+          return Array.isArray(j) ? j : null;
+        }catch(_){ return null; }
+      }
+      const u15 = `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m&startTime=${tsMs-12*3600e3}&endTime=${tsMs+12*3600e3}&limit=1000`;
+      let arr = await fetchK(u15);
+      if(!arr || arr.length===0){
+        const u1 = `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&startTime=${tsMs-3*86400e3}&endTime=${tsMs+3*86400e3}&limit=1000`;
+        arr = await fetchK(u1);
+      }
+      if(!arr || arr.length===0) return null;
+
+      let best = arr[0], bestd = Math.abs(arr[0][0]-tsMs);
+      for(const k of arr){
+        const d = Math.abs(k[0]-tsMs);
+        if(d<bestd){ best=k; bestd=d; }
+      }
+      const close = parseFloat(best[4]);
+      return Number.isFinite(close) ? close : null;
+    }
+
+    async function compute(){
+      if(records.length===0){ alert('Add at least one record.'); return; }
+      setBusy(true);
+      const out = [];
+      for(const rec of records){
+        const dateISO = toISODate(rec.date);
+        let ts;
+        try {
+          const dt = rec.time ? new Date(`${dateISO}T${rec.time}:00`) : new Date(`${dateISO}T12:00:00`);
+          ts = dt.getTime();
+        } catch{ ts = new Date(dateISO).getTime()+12*60*60*1000; }
+
+        const cur = rec.currency;
+        let fx = null;
+        let btc_usd_then = null;
+        try { fx = await fxOnDate(dateISO, cur); } catch(_){}
+        try { btc_usd_then = await btcPriceNear(ts); } catch(_){}
+
+        if(!fx || !btc_usd_then){
+          out.push({...rec, status:'error', msg: (!fx?`FX missing for ${cur}. `:'') + (!btc_usd_then?'BTC price missing.':'') });
+          continue;
+        }
+
+        const amt = parseFloat(rec.amount);
+        const fee = parseFloat(rec.feePct||'0')/100;
+        const usd_at_buy = amt / fx.rate;
+        const usd_after_fee = usd_at_buy * (1 - Math.max(0,Math.min(fee,0.2)));
+        const btc_bought = usd_after_fee / btc_usd_then;
+
+        const btc_usd_now = (await (async()=> {
+          try{
+            const u = await fetch(prox('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'), {cache:'no-store'});
+            if(u.ok){ const j = await u.json(); return parseFloat(j?.price)||0; }
+          }catch(_){}
+          return 0;
+        })());
+
+        let usd_to_cur_now = 1;
+        if(cur!=='USD' && cur!=='USDT'){
+          usd_to_cur_now = usdRates?.[cur] || fx.rate;
+        }
+        const now_cur_value = btc_bought * btc_usd_now * usd_to_cur_now;
+        const pl_cur = now_cur_value - amt;
+        const pl_pct = (pl_cur / amt) * 100;
+
+        out.push({
+          ...rec,
+          status:'ok',
+          dateISO,
+          usd_to_cur_day: fx.rate,
+          fx_source: fx.src,
+          fx_used_date: fx.usedDate,
+          fx_url: fx.url,
+          btc_usd_then,
+          btc_bought,
+          now_cur_value,
+          pl_cur,
+          pl_pct
+        });
+      }
+      setRecords(out);
+      setBusy(false);
+    }
+
+    const groups = records.filter(r=>r.status==='ok').reduce((m,r)=>{
+      const k = r.currency;
+      if(!m[k]) m[k] = {invest:0, now:0};
+      m[k].invest += parseFloat(r.amount||0);
+      m[k].now    += r.now_cur_value||0;
+      return m;
+    }, {});
+
+    return (
+      React.createElement('section',{className:'card'},
+        React.createElement('div',{className:'pad'},
+          React.createElement('h2',null,'Profit or Loss'),
+          React.createElement('p',{className:'lead'},'Add many records. Each record can use a different currency. The tool finds daily FX and a BTC price near your time.'),
+          React.createElement('div',{className:'row'},
+            React.createElement('div',null,
+              React.createElement('label',null,'Amount'),
+              React.createElement('input',{type:'number',inputMode:'decimal',placeholder:'15000',value:form.amount,onChange:e=>setForm({...form,amount:e.target.value})})
+            ),
+            React.createElement('div',null,
+              React.createElement('label',null,'Currency'),
+              React.createElement('select',{value:form.currency,onChange:e=>setForm({...form,currency:e.target.value})}, FIATS.map(c=>React.createElement('option',{key:c,value:c},c)))
+            )
+          ),
+          React.createElement('div',{className:'row',style:{marginTop:8}},
+            React.createElement('div',null,
+              React.createElement('label',null,'Date'),
+              React.createElement('input',{type:'date',value:form.date,onChange:e=>setForm({...form,date:e.target.value})})
+            ),
+            React.createElement('div',null,
+              React.createElement('label',null,'Time optional'),
+              React.createElement('input',{type:'time',value:form.time,onChange:e=>setForm({...form,time:e.target.value})})
+            )
+          ),
+          React.createElement('div',{className:'row',style:{marginTop:8}},
+            React.createElement('div',null,
+              React.createElement('label',null,'Fee percent optional'),
+              React.createElement('input',{type:'number',inputMode:'decimal',placeholder:'0.5',value:form.feePct,onChange:e=>setForm({...form,feePct:e.target.value})})
+            ),
+            React.createElement('div',null)
+          ),
+          React.createElement('div',{style:{display:'flex',gap:'8px',marginTop:'10px'}},
+            React.createElement('button',{className:'btn',onClick:addRecord},'Add record'),
+            React.createElement('button',{className:'btn',onClick:clearAll},'Clear all'),
+            React.createElement('div',{className:'spacer'}),
+            React.createElement('button',{className:'btn primary',onClick:compute,disabled:busy}, busy?'Computing…':'Compute')
+          ),
+          React.createElement('div',{style:{marginTop:'12px',overflowX:'auto'}},
+            React.createElement('table',{className:'table'},
+              React.createElement('thead',null,
+                React.createElement('tr',null,
+                  React.createElement('th',null,'Date'),
+                  React.createElement('th',null,'Time'),
+                  React.createElement('th',null,'Amount'),
+                  React.createElement('th',null,'USD→Cur on day'),
+                  React.createElement('th',null,'BTCUSD then'),
+                  React.createElement('th',null,'BTC bought'),
+                  React.createElement('th',null,'Now value'),
+                  React.createElement('th',null,'P or L'),
+                  React.createElement('th',null,'FX source'),
+                  React.createElement('th',null,'Status')
+                )
+              ),
+              React.createElement('tbody',null,
+                records.map(r=>{
+                  const curFmt = fmtCur(r.currency==='USDT'?'USD':r.currency);
+                  return React.createElement('tr',{key:r.id},
+                    React.createElement('td',null, r.date || r.dateISO || '—'),
+                    React.createElement('td',null, r.time || '—'),
+                    React.createElement('td',null, r.amount? curFmt.format(parseFloat(r.amount)) : '—'),
+                    React.createElement('td',null, r.usd_to_cur_day? new Intl.NumberFormat(undefined,{maximumFractionDigits:6}).format(r.usd_to_cur_day) : '—'),
+                    React.createElement('td',null, r.btc_usd_then? fmtUsd.format(r.btc_usd_then) : '—'),
+                    React.createElement('td',null, r.btc_bought!=null? new Intl.NumberFormat(undefined,{maximumFractionDigits:8}).format(r.btc_bought) : '—'),
+                    React.createElement('td',null, r.now_cur_value!=null? curFmt.format(r.now_cur_value) : '—'),
+                    React.createElement('td',null, r.pl_cur!=null? [
+                      curFmt.format(r.pl_cur),' ',
+                      React.createElement('span',{className:'pill '+(r.pl_cur>=0?'gain':'loss')}, (r.pl_pct>=0?'+':'')+(r.pl_pct||0).toFixed(2)+'%')
+                    ]:'—'),
+                    React.createElement('td',null, r.fx_source ? `${r.fx_source} @ ${r.fx_used_date}` : '—'),
+                    React.createElement('td',null, r.status==='ok'?'OK': r.status==='error'? React.createElement('span',{className:'err'},r.msg||'Error') : 'Pending')
+                  );
+                })
+              ),
+              Object.keys(groups).length>0 ? React.createElement('tfoot',null,
+                Object.entries(groups).map(([cur,vals])=>{
+                  const fmt = fmtCur(cur==='USDT'?'USD':cur);
+                  const pl = vals.now - vals.invest;
+                  const pct = (pl/Math.max(vals.invest,1))*100;
+                  return React.createElement('tr',{key:cur},
+                    React.createElement('td',{colSpan:2,style:{textAlign:'right',color:'var(--muted)'}},'Totals ',cur),
+                    React.createElement('td',null, fmt.format(vals.invest)),
+                    React.createElement('td',{colSpan:3}),
+                    React.createElement('td',null, fmt.format(vals.now)),
+                    React.createElement('td',null, [fmt.format(pl),' ',React.createElement('span',{className:'pill '+(pl>=0?'gain':'loss')}, (pl>=0?'+':'')+pct.toFixed(2)+'%')]),
+                    React.createElement('td',{colSpan:2})
+                  );
+                })
+              ) : null
+            )
+          )
+        )
+      )
+    );
+  }
+
+  // Seasonal page with overlays
+  function SeasonalPage({useProxy, theme}){
+    const prox = proxWrap(useProxy);
+    const containerRef = useRef(null);
+    const chartRef = useRef(null);
+    const mainSeriesRef = useRef(null);
+    const overlaySeriesRefs = useRef([]);
+    const [quote,setQuote] = useState('LKR');
+    const [preset,setPreset] = useState('1Y'); // 1Y, 6M, 3M, 1M
+    const [overlayYears,setOverlayYears] = useState(3); // 0..4
+    const [normalize,setNormalize] = useState(true);
+    const [busy,setBusy] = useState(false);
+    const [status,setStatus] = useState('');
+
+    const presets = { '1Y':{days:365}, '6M':{days:183}, '3M':{days:92}, '1M':{days:31} };
+
+    function makeChart(){
+      if(chartRef.current) chartRef.current.remove();
+      const gridC = 'rgba(128,128,128,0.12)';
+      const textColor = color('--ink') || '#fff';
+      const c = LightweightCharts.createChart(containerRef.current, {
+        height: 480,
+        layout: { background: { color: 'transparent' }, textColor },
+        rightPriceScale: { borderVisible:false },
+        timeScale: { borderVisible:false },
+        grid: { vertLines:{ color:gridC }, horzLines:{ color:gridC } },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal }
+      });
+      chartRef.current = c;
+      const area = c.addAreaSeries({
+        lineWidth: 2,
+        topColor: theme==='dark' ? 'rgba(90,169,255,0.20)' : 'rgba(26,95,184,0.20)',
+        bottomColor: 'rgba(0,0,0,0)',
+        lineColor: theme==='dark' ? '#5aa9ff' : '#1a5fb8'
+      });
+      mainSeriesRef.current = area;
+      overlaySeriesRefs.current.forEach(s => s && c.removeSeries(s));
+      overlaySeriesRefs.current = [];
+    }
+
+    async function fetchDailyAll(startMs, endMs){
+      let out = [];
+      let cursor = startMs;
+      while(cursor < endMs - 1){
+        const url = prox(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&startTime=${cursor}&endTime=${endMs}&limit=1000`);
+        const r = await fetch(url, {cache:'no-store'});
+        if(!r.ok) break;
+        const a = await r.json();
+        if(!Array.isArray(a) || a.length===0) break;
+        out = out.concat(a);
+        const last = a[a.length-1][0];
+        if(last<=cursor) break;
+        cursor = last + 86400e3;
+        if(a.length<1000) break;
+      }
+      return out;
+    }
+
+    async function fetchTimeseriesFX(cur, startISO, endISO){
+      if(cur==='USD' || cur==='USDT') return { map:{}, latest:1, src:'peg' };
+      try{
+        const u = prox(`https://api.exchangerate.host/timeseries?base=USD&symbols=${cur}&start_date=${startISO}&end_date=${endISO}`);
+        const r = await fetch(u,{cache:'no-store'});
+        if(r.ok){
+          const j = await r.json();
+          const m = {};
+          for(const [d,obj] of Object.entries(j.rates||{})) m[d] = obj[cur];
+          if(Object.keys(m).length) return { map:m, src:'exchangerate.host' };
+        }
+      }catch(_){}
+      try{
+        const u2 = prox('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
+        const r2 = await fetch(u2,{cache:'no-store'});
+        if(r2.ok){
+          const j2 = await r2.json();
+          const rate = j2?.usd?.[cur.toLowerCase()];
+          if(rate) return { map:{}, latest:rate, src:'npm-latest' };
+        }
+      }catch(_){}
+      return { map:{}, latest:1, src:'fallback' };
+    }
+    function pickFx(fx, iso){
+      if(!fx) return 1;
+      if(fx.map && fx.map[iso]) return fx.map[iso];
+      for(let b=1;b<=7;b++){
+        const d = shiftISO(iso, -b);
+        if(fx.map && fx.map[d]) return fx.map[d];
+      }
+      return fx.latest || 1;
+    }
+
+    async function render(){
+      setBusy(true);
+      setStatus('loading…');
+      try{
+        const now = Date.now();
+        const spanDays = presets[preset].days;
+        const start = now - spanDays*86400e3;
+        const startISO = new Date(start).toISOString().slice(0,10);
+        const endISO   = new Date(now).toISOString().slice(0,10);
+
+        const [dailyAll, fx] = await Promise.all([
+          fetchDailyAll(now - (overlayYears+1)*370*86400e3, now),
+          fetchTimeseriesFX(quote, new Date(now - (overlayYears+1)*370*86400e3).toISOString().slice(0,10), endISO)
+        ]);
+
+        const pts = dailyAll.map(k => {
+          const t = k[0];
+          const iso = new Date(t).toISOString().slice(0,10);
+          const close = parseFloat(k[4]);
+          const rate = (quote==='USD'||quote==='USDT') ? 1 : pickFx(fx, iso);
+          return { t, iso, v: close*rate };
+        });
+
+        makeChart();
+
+        const mainPts = pts.filter(p => p.t >= start).map(p => ({ time: Math.floor(p.t/1000), value: p.v }));
+        const mainStartVal = mainPts.length ? mainPts[0].value : 1;
+        mainSeriesRef.current.setData(mainPts);
+        chartRef.current.timeScale().fitContent();
+
+        overlaySeriesRefs.current.forEach(s => s && chartRef.current.removeSeries(s));
+        overlaySeriesRefs.current = [];
+        const palette = theme==='dark'
+          ? ['#66d38f','#ffd166','#ff6b6b','#9aa6ff']
+          : ['#189c63','#b08b00','#c33b3b','#4154ff'];
+
+        const baseStart = new Date(start);
+        for(let i=1;i<=overlayYears;i++){
+          const year = new Date().getUTCFullYear() - i;
+          const aligned = [];
+          let startVal = null;
+          for(let d=0; d<spanDays; d++){
+            const target = Date.UTC(year, baseStart.getUTCMonth(), baseStart.getUTCDate()) + d*86400e3;
+            let best=null;
+            for(const p of pts){
+              const diff = Math.abs(p.t - target);
+              if(!best || diff<best.diff) best = {p, diff};
+            }
+            if(!best) continue;
+            const v = best.p.v;
+            if(startVal==null) startVal = v;
+            const yVal = normalize ? (v/startVal)*mainStartVal : v;
+            const x = Math.floor( (baseStart.getTime()+d*86400e3)/1000 );
+            aligned.push({ time:x, value:yVal });
+          }
+          const s = chartRef.current.addLineSeries({
+            lineWidth: 2,
+            color: palette[(i-1)%palette.length],
+            lineStyle: LightweightCharts.LineStyle.Dotted
+          });
+          s.setData(aligned);
+          overlaySeriesRefs.current.push(s);
+        }
+
+        setStatus(`BTC/${quote} • ${preset} • overlays ${overlayYears}${normalize?' normalized':''} • FX: ${fx.src}`);
+      }catch(e){
+        setStatus('error loading');
+      }finally{
+        setBusy(false);
+      }
+    }
+
+    useEffect(()=>{ render(); }, [quote, preset, overlayYears, normalize, theme]);
+    useEffect(()=>{
+      function rebuild(){ if(chartRef.current){ chartRef.current.applyOptions({ width: containerRef.current.clientWidth }); } }
+      const ro = new ResizeObserver(rebuild);
+      ro.observe(containerRef.current);
+      return ()=>ro.disconnect();
+    },[]);
+
+    return React.createElement('section',{className:'card'},
+      React.createElement('div',{className:'pad'},
+        React.createElement('h2',null,'Seasonal chart'),
+        React.createElement('p',{className:'lead'},'Coinbase-style area with past-years overlays. You can normalize overlays. Text is light in dark mode.'),
+        React.createElement('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'center',marginBottom:'8px'}},
+          React.createElement('label',null,'Quote'),
+          React.createElement('select',{value:quote,onChange:e=>setQuote(e.target.value)}, FIATS.map(f=>React.createElement('option',{key:f,value:f},f))),
+          React.createElement('div',null,
+            ['1Y','6M','3M','1M'].map(p =>
+              React.createElement('button',{key:p,className:'chip '+(p===preset?'active':''),onClick:()=>setPreset(p)}, p)
+            )
+          ),
+          React.createElement('label',null,'Overlays'),
+          React.createElement('select',{value:overlayYears,onChange:e=>setOverlayYears(parseInt(e.target.value,10))},
+            [0,1,2,3,4].map(n=>React.createElement('option',{key:n,value:n}, n===0?'None':`Last ${n}y`))
+          ),
+          React.createElement('label',{className:'switch'},React.createElement('input',{type:'checkbox',checked:normalize,onChange:e=>setNormalize(e.target.checked)}),' Normalize'),
+          React.createElement('div',{className:'spacer'}),
+          React.createElement('span',{className:'mono muted'}, busy?'loading…':status)
+        ),
+        React.createElement('div',{className:'chartwrap'},
+          React.createElement('div',{ref:containerRef,style:{height:'480px',width:'100%'}})
+        )
+      )
+    );
+  }
+
+  // TradingView advanced chart page
+  function TradingViewChart({symbol, theme, styleNum}){
+    const ref = useRef(null);
+    useEffect(()=>{
+      if(!window.TradingView || !ref.current) return;
+      const id = 'tv_'+Math.random().toString(36).slice(2);
+      ref.current.innerHTML = '<div id="'+id+'" style="height:560px;"></div>';
+      new window.TradingView.widget({
+        symbol,
+        interval: "60",
+        container_id: id,
+        autosize: true,
+        timezone: "Etc/UTC",
+        theme: theme==='dark' ? "dark" : "light",
+        style: String(styleNum), // 1 candles, 2 bars, 3 line, 8 area
+        locale: "en",
+        hide_side_toolbar: false,
+        allow_symbol_change: true,
+        withdateranges: true,
+        details: true,
+        hotlist: true,
+        calendar: true,
+        studies: ["Volume@tv-basicstudies"],
+        toolbar_bg: getComputedStyle(document.documentElement).getPropertyValue('--chart-bg').trim()||"#0f1520",
+      });
+    },[symbol, theme, styleNum]);
+    return React.createElement('div',{className:'chartwrap',style:{height:'560px'}},
+      React.createElement('div',{ref,style:{height:'100%',width:'100%'}})
+    );
+  }
+  function PricesPage({theme}){
+    const [exchange,setExchange] = useState('BINANCE:BTCUSDT');
+    const [styleNum,setStyleNum] = useState(1);
+    return React.createElement('section',{className:'card'},
+      React.createElement('div',{className:'pad'},
+        React.createElement('h2',null,'Prices — TradingView'),
+        React.createElement('p',{className:'lead'},'TradingView advanced chart with candles, bars, volume, and indicators.'),
+        React.createElement('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'center',marginBottom:'8px'}},
+          React.createElement('label',null,'Symbol'),
+          React.createElement('select',{value:exchange,onChange:e=>setExchange(e.target.value)},
+            ['BINANCE:BTCUSDT','COINBASE:BTCUSD','BYBIT:BTCUSDT','BITSTAMP:BTCUSD','KRAKEN:XBTUSD'].map(s=>React.createElement('option',{key:s,value:s},s))
+          ),
+          React.createElement('label',null,'Style'),
+          React.createElement('select',{value:styleNum,onChange:e=>setStyleNum(parseInt(e.target.value,10))},
+            [{v:1,t:'Candles'},{v:2,t:'Bars'},{v:3,t:'Line'},{v:8,t:'Area'}].map(o=>React.createElement('option',{key:o.v,value:o.v},o.t))
+          ),
+          React.createElement('div',{className:'spacer'}),
+          React.createElement('span',{className:'mono muted'}, exchange)
+        ),
+        React.createElement(TradingViewChart,{symbol:exchange, theme, styleNum})
+      )
+    );
+  }
+
+  function About(){
+    return (
+      React.createElement('section',{className:'card'},
+        React.createElement('div',{className:'pad'},
+          React.createElement('h2',null,'About and tips'),
+          React.createElement('p',{className:'lead'},'Seasonal shows Coinbase-style charts with overlays aligned to the current window. Prices uses TradingView with indicators. Fee calc gives sat per vB in your currency and a full acquisition estimator.')
+        )
+      )
+    );
+  }
+
+  // App
+  function App(){
+    const [theme,setTheme] = useState(localStorage.getItem('btctheme')||'dark');
+    useEffect(()=>{ document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('btctheme',theme); },[theme]);
+
+    const [tab,setTab] = useState('seasonal'); // seasonal | prices | calc | pnl | about
+    const [fiat,setFiat] = useState('LKR');
+    const [useProxy,setUseProxy] = useState(false);
+
+    const { btcUsd, usdRates, fees, updated, status, refresh, prox } = useLiveData(useProxy);
+
+    return (
+      React.createElement('div',{className:'app'},
+        React.createElement('div',{className:'topbar'},
+          React.createElement('button',{className:'hamb',onClick:()=>document.querySelector('.sidebar').classList.toggle('collapsed')}, '≡'),
+          React.createElement('div',null,'BTC Tools Pro'),
+          React.createElement('div',{className:'spacer'}),
+          React.createElement('div',{className:'controls'},
+            React.createElement('select',{value:fiat,onChange:e=>setFiat(e.target.value)}, FIATS.map(c=>React.createElement('option',{key:c,value:c},c))),
+            React.createElement('label',{className:'switch'},
+              React.createElement('input',{type:'checkbox',checked:useProxy,onChange:e=>setUseProxy(e.target.checked)}),' CORS proxy'
+            ),
+            React.createElement('label',{className:'switch'},
+              React.createElement('input',{type:'checkbox',checked:theme==='dark',onChange:e=>setTheme(e.target.checked?'dark':'light')}),' Dark mode'
+            )
+          )
+        ),
+
+        React.createElement('aside',{className:'sidebar'},
+          React.createElement('div',{className:'side-brand'}, React.createElement('span',{className:'dot'}),' ', React.createElement('span',null,'BTC Suite')),
+          React.createElement('div',{className:'side-group'},'Navigation'),
+          ['seasonal','prices','calc','pnl','about'].map(k =>
+            React.createElement('button',{key:k,className:'navbtn '+(tab===k?'active':''),onClick:()=>setTab(k)},
+              k==='seasonal'?'Seasonal chart': k==='prices'?'Prices (TradingView)': k==='calc'?'Fee calculator': k==='pnl'?'PnL':'About'
+            )
+          )
+        ),
+
+        React.createElement('main',{className:'main'},
+          React.createElement('div',{className:'wrap'},
+            React.createElement('h1',null,
+              tab==='seasonal'?'Seasonal chart':
+              tab==='prices'?'Prices':
+              tab==='calc'?'Fees and FX':
+              tab==='pnl'?'Profit or Loss':'About'
+            ),
+            React.createElement('p',{className:'lead'},
+              tab==='seasonal'
+                ? 'Coinbase-style area with past-years overlays. Choose LKR, USD, USDT and more.'
+                : tab==='prices'
+                  ? 'Superb TradingView chart with candles, bars, volume, and indicators.'
+                  : tab==='pnl'
+                    ? 'Multiple records with per-row FX source.'
+                    : 'Sat per vB calc in your currency plus P2P to hot-wallet estimator.'
+            ),
+            tab==='seasonal'
+              ? React.createElement(SeasonalPage,{useProxy, theme})
+              : tab==='prices'
+                ? React.createElement(PricesPage,{theme})
+                : tab==='calc'
+                  ? React.createElement('div',{className:'grid'},
+                      React.createElement(FeeCalculator,{fiat, btcUsd, usdRates, fees, updated, refresh}),
+                      React.createElement('section',{className:'card'},
+                        React.createElement('div',{className:'pad'},
+                          React.createElement('h2',null,'Status'),
+                          React.createElement('ul',{className:'status'},
+                            status.length? status.map((s,i)=> React.createElement('li',{key:i,className:s.toLowerCase().includes('fail')||s.toLowerCase().includes('error')?'err':''}, s))
+                                         : React.createElement('li',null,'All good')
+                          )
+                        )
+                      )
+                    )
+                  : tab==='pnl'
+                    ? React.createElement(PnlTool,{btcUsd, usdRates, prox})
+                    : React.createElement(About,null)
+          )
+        )
+      )
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+</body>
+</html>
