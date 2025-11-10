@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>BTC Tools — Fees • PnL • Seasonal • Prices</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>BTC Tools • Fees • PnL • Seasonal • Prices</title>
 <style>
   :root{
     --bg:#0b0f14; --panel:#0e1622; --card:#121a27; --ink:#ffffff; --muted:#c8d4e6;
     --accent:#5aa9ff; --ok:#66d38f; --warn:#ffd166; --err:#ff6b6b;
     --border:rgba(255,255,255,.12); --panel-alpha:rgba(8,12,18,.92);
     --chart-bg:#0f1520; --shadow:rgba(0,0,0,0.35); --glass:rgba(255,255,255,.06);
+    --topbar-h:56px;
   }
   :root[data-theme="light"]{
     --bg:#f6f8fc; --panel:#ffffff; --card:#ffffff; --ink:#0b1525; --muted:#4a5a70;
@@ -29,11 +30,29 @@
     filter:saturate(115%);animation:bgShift 34s linear infinite alternate;z-index:0;pointer-events:none}
   @keyframes bgShift{0%{transform:translate3d(0,0,0) scale(1)}100%{transform:translate3d(-2%,-3%,0) scale(1.03)}}
 
-  .app{position:relative;display:grid;grid-template-columns:280px 1fr;grid-template-rows:56px 1fr;grid-template-areas:"side top" "side main";height:100%}
-  .topbar{grid-area:top;display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--panel-alpha);border-bottom:1px solid var(--border);backdrop-filter:blur(10px) saturate(120%);z-index:10}
-  .hamb{width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--glass);color:var(--ink);display:grid;place-items:center;cursor:pointer}
+  /* Layout */
+  .app{
+    position:relative;
+    display:grid;
+    grid-template-columns:280px 1fr;
+    grid-template-rows:var(--topbar-h) 1fr;
+    grid-template-areas:"side top" "side main";
+    height:100%;
+  }
+  .topbar{
+    grid-area:top;
+    display:flex;align-items:center;gap:10px;
+    padding:10px 12px;
+    background:var(--panel-alpha);
+    border-bottom:1px solid var(--border);
+    -webkit-backdrop-filter:blur(10px) saturate(120%);
+    backdrop-filter:blur(10px) saturate(120%);
+    z-index:20;
+    position:sticky; top:0;
+  }
+  .hamb{width:40px;height:40px;border-radius:12px;border:1px solid var(--border);background:var(--glass);color:var(--ink);display:grid;place-items:center;cursor:pointer}
   .spacer{flex:1}
-  .controls{display:flex;align-items:center;gap:8px}
+  .controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   select,input[type="number"],input[type="time"],input[type="date"],input[type="text"]{
     padding:10px 12px;border-radius:12px;border:1px solid var(--border);
     background:color-mix(in srgb,var(--card) 92%,#000 8%);color:var(--ink);outline:none
@@ -41,14 +60,22 @@
   select:focus,input:focus{box-shadow:0 0 0 3px rgba(90,169,255,.25)}
   .switch{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 
-  .sidebar{grid-area:side;background:linear-gradient(180deg,var(--glass),transparent),var(--panel);border-right:1px solid var(--border);padding:12px;overflow:auto;transform:translateX(0);transition:transform .25s ease;z-index:11}
-  .sidebar.collapsed{transform:translateX(-100%)}
+  .sidebar{
+    grid-area:side;
+    background:linear-gradient(180deg,var(--glass),transparent),var(--panel);
+    border-right:1px solid var(--border);
+    padding:12px;overflow:auto;transform:translateX(0);
+    transition:transform .25s ease;z-index:21
+  }
   .side-brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.2px;margin-bottom:12px}
   .dot{width:10px;height:10px;border-radius:999px;background:var(--accent);box-shadow:0 0 12px var(--accent)}
   .side-group{margin:10px 0 6px;color:var(--muted);font-size:12px}
-  .navbtn{width:100%;text-align:left;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--glass);color:var(--ink);cursor:pointer;margin-bottom:8px;transition:transform .15s ease,box-shadow .15s ease,background .2s}
+  .navbtn{width:100%;text-align:left;display:flex;align-items:center;gap:10px;padding:12px;border-radius:14px;border:1px solid var(--border);background:var(--glass);color:var(--ink);cursor:pointer;margin-bottom:8px;transition:transform .15s ease,box-shadow .15s ease,background .2s}
   .navbtn:hover{transform:translateY(-1px);box-shadow:0 10px 24px var(--shadow)}
   .navbtn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  .scrim{position:fixed;inset:var(--topbar-h) 0 0 0;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:19}
+  .scrim.show{opacity:1;pointer-events:auto}
 
   .main{grid-area:main;position:relative;overflow:auto;z-index:1}
   .wrap{max-width:1200px;margin:0 auto;padding:14px}
@@ -61,11 +88,11 @@
   .card{border:1px solid var(--border);border-radius:18px;background:linear-gradient(180deg,var(--glass),transparent),var(--card);box-shadow:0 16px 40px var(--shadow);transform:translateY(6px) scale(.985);opacity:0;animation:cardIn .5s ease forwards}
   .pad{padding:14px}
   @keyframes cardIn{to{transform:translateY(0) scale(1);opacity:1}}
-  .btn{padding:9px 12px;border-radius:12px;background:color-mix(in srgb,var(--card) 90%,#000 10%);color:var(--ink);border:1px solid var(--border);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background .2s}
+  .btn{padding:11px 14px;border-radius:12px;background:color-mix(in srgb,var(--card) 90%,#000 10%);color:var(--ink);border:1px solid var(--border);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease,background .2s}
   .btn:hover{transform:translateY(-1px);box-shadow:0 10px 24px var(--shadow)}
   .btn:active{transform:translateY(0)}
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-  .chip{padding:7px 11px;border-radius:999px;border:1px solid var(--border);background:color-mix(in srgb,var(--card) 92%,#000 8%);cursor:pointer;transition:transform .15s ease,background .2s;margin:0 6px 6px 0}
+  .chip{padding:8px 12px;border-radius:999px;border:1px solid var(--border);background:color-mix(in srgb,var(--card) 92%,#000 8%);cursor:pointer;transition:transform .15s ease,background .2s;margin:0 6px 6px 0}
   .chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
 
   .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -92,11 +119,37 @@
   :root[data-theme="light"] .gain{color:#0c5a35}
   :root[data-theme="light"] .loss{color:#7a1e1e}
   .muted{color:var(--muted)}
+
+  /* Mobile */
+  @media(max-width: 900px){
+    .app{
+      grid-template-columns:1fr;
+      grid-template-rows:var(--topbar-h) 1fr;
+      grid-template-areas:"top" "main";
+      height:100svh;
+    }
+    .sidebar{
+      position:fixed; left:0; top:0; padding-top:calc(env(safe-area-inset-top,0px) + 10px + var(--topbar-h));
+      width:min(88vw, 320px); height:100svh;
+      transform:translateX(-105%);
+      border-right:1px solid var(--border);
+    }
+    .sidebar.open{ transform:translateX(0) }
+    .topbar{ position:fixed; top:0; left:0; right:0 }
+    .wrap{ padding:12px; padding-top:calc(var(--topbar-h) + 8px) }
+    .controls select{ min-width:120px }
+    .btn{ padding:12px 14px }
+    .card{ box-shadow:0 10px 24px var(--shadow) }
+  }
+
+  .chart-container{ width:100%; height:min(60svh, 560px); min-height:300px }
+  .tv-container{ width:100%; height:min(65svh, 600px); min-height:320px }
 </style>
 </head>
 <body>
   <div class="bg-anim"></div>
   <div id="root"></div>
+  <div id="scrim" class="scrim"></div>
 
   <!-- React -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -120,56 +173,47 @@
     const dd = String(dt.getUTCDate()).padStart(2, '0');
     return `${yy}-${mm}-${dd}`;
   }
+  const color = (varName) => getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
 
-  const mapKeysUpper = obj => {
-    if(!obj || typeof obj!=='object') return obj;
-    const out = {};
-    for(const k of Object.keys(obj)) out[k.toUpperCase()] = obj[k];
-    return out;
-  };
   async function firstOk(fns){
     for(const fn of fns){
-      try{ const v = await fn(); if(v && (typeof v==='number' || typeof v==='object')) return v; }catch(_){}
+      try{ const v = await fn(); if(v && (typeof v==='number' || typeof v==='object')) return v; }catch(_){/* ignore */}
     }
     return null;
   }
-  const proxWrap = (useProxy) => (url) => useProxy ? `https://corsproxy.io/?${encodeURIComponent(url)}` : url;
-  const color = (varName) => getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
 
-  // Live data for fees, BTC, and FX
-  function useLiveData(useProxy){
+  // Live data hook without proxy
+  function useLiveData(){
     const [btcUsd,setBtcUsd]   = useState(null);
     const [usdRates,setUsd]    = useState(null);
     const [fees,setFees]       = useState(null);
     const [updated,setUpdated] = useState('');
     const [status,setStatus]   = useState([]);
-    const prox = url => useProxy ? `https://corsproxy.io/?${encodeURIComponent(url)}` : url;
 
     const refresh = async ()=>{
       const msgs = [];
       try{
         const u = await firstOk([
-          () => fetch(prox('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'), {cache:'no-store'}).then(r=>r.json()).then(j=>parseFloat(j?.price)),
-          () => fetch(prox('https://api.coinbase.com/v2/prices/BTC-USD/spot'), {cache:'no-store'}).then(r=>r.json()).then(j=>parseFloat(j?.data?.amount)),
+          () => fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT', {cache:'no-store'}).then(r=>r.json()).then(j=>parseFloat(j?.price)),
+          () => fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot', {cache:'no-store'}).then(r=>r.json()).then(j=>parseFloat(j?.data?.amount)),
         ]);
         u ? setBtcUsd(u) : msgs.push('BTC price fetch failed');
       }catch{ msgs.push('BTC price error') }
 
       try{
         const fx = await firstOk([
-          () => fetch(prox('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json'), {cache:'no-store'}).then(r=>r.json()).then(j=>mapKeysUpper(j?.usd)),
-          () => fetch(prox('https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/usd.json'), {cache:'no-store'}).then(r=>r.json()).then(j=>mapKeysUpper(j?.usd)),
-          () => fetch(prox('https://api.exchangerate.host/latest?base=USD'), {cache:'no-store'}).then(r=>r.json()).then(j=>j?.rates),
-          () => fetch(prox('https://open.er-api.com/v6/latest/USD'), {cache:'no-store'}).then(r=>r.json()).then(j=>j?.rates),
+          () => fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json', {cache:'no-store'}).then(r=>r.json()).then(j=>{ const o=j?.usd||{}; const out={}; Object.keys(o).forEach(k=>out[k.toUpperCase()]=o[k]); return out; }),
+          () => fetch('https://api.exchangerate.host/latest?base=USD', {cache:'no-store'}).then(r=>r.json()).then(j=>j?.rates),
+          () => fetch('https://open.er-api.com/v6/latest/USD', {cache:'no-store'}).then(r=>r.json()).then(j=>j?.rates),
         ]);
         fx ? setUsd(fx) : msgs.push('FX fetch failed');
       }catch{ msgs.push('FX error') }
 
       try{
         const fe = await firstOk([
-          () => fetch(prox('https://mempool.space/api/v1/fees/recommended'), {cache:'no-store'}).then(r=>r.json()),
+          () => fetch('https://mempool.space/api/v1/fees/recommended', {cache:'no-store'}).then(r=>r.json()),
           async () => {
-            const j = await fetch(prox('https://blockstream.info/api/fee-estimates'), {cache:'no-store'}).then(r=>r.json());
+            const j = await fetch('https://blockstream.info/api/fee-estimates', {cache:'no-store'}).then(r=>r.json());
             const f1 = Math.ceil(j['1']||1), f3 = Math.ceil(j['3']||f1), f6 = Math.ceil(j['6']||f3), f12 = Math.ceil(j['12']||f6);
             const min = Math.max(1, Math.min(f12,f6,f3,f1));
             return {fastestFee:f1, halfHourFee:f3, hourFee:f6, economyFee:f12, minimumFee:min};
@@ -182,23 +226,21 @@
       setStatus(msgs);
     };
 
-    useEffect(()=>{ refresh(); const id=setInterval(refresh, 60_000); return ()=>clearInterval(id); }, [useProxy]);
-    return { btcUsd, usdRates, fees, updated, status, refresh, prox };
+    useEffect(()=>{ refresh(); const id=setInterval(refresh, 60_000); return ()=>clearInterval(id); }, []);
+    return { btcUsd, usdRates, fees, updated, status, refresh };
   }
 
-  // Fee calculator with P2P + exchange + network estimator
   function FeeCalculator({fiat, btcUsd, usdRates, fees, refresh, updated}){
     const [satVb,setSatVb] = useState('');
     const [vbytes,setVbytes] = useState('180');
     const [mode,setMode] = useState('halfhour');
     const [amountSentFiat,setAmountSentFiat] = useState('');
 
-    // P2P + exchange estimator
     const [estAmountFiat,setEstAmountFiat] = useState('');
-    const [estP2PUnit,setEstP2PUnit] = useState('');         // fiat per 1 USDT
-    const [estP2PFeePct,setEstP2PFeePct] = useState('0');    // %
-    const [estExFeePct,setEstExFeePct] = useState('0');      // %
-    const [estExFixedUSDT,setEstExFixedUSDT] = useState(''); // fixed USDT fee
+    const [estP2PUnit,setEstP2PUnit] = useState('');
+    const [estP2PFeePct,setEstP2PFeePct] = useState('0');
+    const [estExFeePct,setEstExFeePct] = useState('0');
+    const [estExFixedUSDT,setEstExFixedUSDT] = useState('');
 
     const usdToFiat = useMemo(()=>{
       if(fiat==='USDT' || fiat==='USD') return 1;
@@ -223,8 +265,7 @@
     const amtSent = parseFloat(amountSentFiat||'');
     const feePctOfAmount = (feeFiat!=null && isFinite(amtSent) && amtSent>0) ? (feeFiat/amtSent)*100 : null;
 
-    // Acquisition estimator math
-    const p2pUnit = parseFloat(estP2PUnit||'');          // fiat per USDT
+    const p2pUnit = parseFloat(estP2PUnit||'');
     const p2pFee = Math.max(0, parseFloat(estP2PFeePct||'0')/100);
     const exFeePct = Math.max(0, parseFloat(estExFeePct||'0')/100);
     const exFixed = Math.max(0, parseFloat(estExFixedUSDT||'0'));
@@ -329,11 +370,11 @@
     );
   }
 
-  // PnL tool
-  function PnlTool({btcUsd, usdRates, prox}){
+  function PnlTool({btcUsd, usdRates}){
     const [records, setRecords] = useState([]);
     const [form, setForm] = useState({ amount:'', currency:'LKR', date:'', time:'', feePct:'' });
     const [busy, setBusy] = useState(false);
+    const prox = (u)=>u; // identity
 
     function addRecord(){
       if(!form.amount || !form.date){ alert('Enter amount and a date. Time is optional.'); return; }
@@ -372,38 +413,11 @@
       }
 
       out = await tryJson(
-        `https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/${dateISO}/currencies/usd/${curLower}.json`,
-        j => j?.[curLower], 'gh-daily-single', dateISO
+        `https://api.exchangerate.host/timeseries?base=USD&symbols=${currency}&start_date=${dateISO}&end_date=${dateISO}`,
+        j => j?.rates?.[dateISO]?.[currency], 'exchangerate.host-daily', dateISO
       );
       if(out) return out;
-      out = await tryJson(
-        `https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/${dateISO}/currencies/usd.json`,
-        j => j?.usd?.[curLower], 'gh-daily-all', dateISO
-      );
-      if(out) return out;
-      for(let back=1; back<=10; back++){
-        const d = shiftISO(dateISO, -back);
-        out = await tryJson(
-          `https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/${d}/currencies/usd.json`,
-          j => j?.usd?.[curLower], 'gh-daily-all', d
-        );
-        if(out) return out;
-        out = await tryJson(
-          `https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/${d}/currencies/usd/${curLower}.json`,
-          j => j?.[curLower], 'gh-daily-single', d
-        );
-        if(out) return out;
-      }
 
-      try{
-        const url1 = `https://api.exchangerate.host/timeseries?base=USD&symbols=${currency}&start_date=${dateISO}&end_date=${dateISO}`;
-        const r1 = await fetch(prox(url1), { cache:'no-store' });
-        if (r1.ok) {
-          const j1 = await r1.json();
-          const v1 = j1?.rates?.[dateISO]?.[currency];
-          if (v1 && v1 > 0) return { rate:v1, src:'exchangerate.host-daily', usedDate:dateISO, url:url1 };
-        }
-      }catch(_){}
       try{
         const url2 = `https://api.exchangerate.host/latest?base=USD&symbols=${currency}`;
         const r2 = await fetch(prox(url2), { cache:'no-store' });
@@ -412,7 +426,7 @@
           const v2 = j2?.rates?.[currency];
           if (v2 && v2 > 0) return { rate:v2, src:'exchangerate.host-latest', usedDate:dateISO, url:url2 };
         }
-      }catch(_){}
+      }catch(_){ }
       try{
         const url3 = `https://open.er-api.com/v6/latest/USD`;
         const r3 = await fetch(prox(url3), { cache:'no-store' });
@@ -467,8 +481,8 @@
         const cur = rec.currency;
         let fx = null;
         let btc_usd_then = null;
-        try { fx = await fxOnDate(dateISO, cur); } catch(_){}
-        try { btc_usd_then = await btcPriceNear(ts); } catch(_){}
+        try { fx = await fxOnDate(dateISO, cur); } catch(_){ }
+        try { btc_usd_then = await btcPriceNear(ts); } catch(_){ }
 
         if(!fx || !btc_usd_then){
           out.push({...rec, status:'error', msg: (!fx?`FX missing for ${cur}. `:'') + (!btc_usd_then?'BTC price missing.':'') });
@@ -483,9 +497,9 @@
 
         const btc_usd_now = (await (async()=> {
           try{
-            const u = await fetch(prox('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT'), {cache:'no-store'});
+            const u = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT', {cache:'no-store'});
             if(u.ok){ const j = await u.json(); return parseFloat(j?.price)||0; }
-          }catch(_){}
+          }catch(_){ }
           return 0;
         })());
 
@@ -515,14 +529,6 @@
       setRecords(out);
       setBusy(false);
     }
-
-    const groups = records.filter(r=>r.status==='ok').reduce((m,r)=>{
-      const k = r.currency;
-      if(!m[k]) m[k] = {invest:0, now:0};
-      m[k].invest += parseFloat(r.amount||0);
-      m[k].now    += r.now_cur_value||0;
-      return m;
-    }, {});
 
     return (
       React.createElement('section',{className:'card'},
@@ -556,7 +562,7 @@
             ),
             React.createElement('div',null)
           ),
-          React.createElement('div',{style:{display:'flex',gap:'8px',marginTop:'10px'}},
+          React.createElement('div',{style:{display:'flex',gap:'8px',marginTop:'10px',flexWrap:'wrap'}},
             React.createElement('button',{className:'btn',onClick:addRecord},'Add record'),
             React.createElement('button',{className:'btn',onClick:clearAll},'Clear all'),
             React.createElement('div',{className:'spacer'}),
@@ -597,22 +603,7 @@
                     React.createElement('td',null, r.status==='ok'?'OK': r.status==='error'? React.createElement('span',{className:'err'},r.msg||'Error') : 'Pending')
                   );
                 })
-              ),
-              Object.keys(groups).length>0 ? React.createElement('tfoot',null,
-                Object.entries(groups).map(([cur,vals])=>{
-                  const fmt = fmtCur(cur==='USDT'?'USD':cur);
-                  const pl = vals.now - vals.invest;
-                  const pct = (pl/Math.max(vals.invest,1))*100;
-                  return React.createElement('tr',{key:cur},
-                    React.createElement('td',{colSpan:2,style:{textAlign:'right',color:'var(--muted)'}},'Totals ',cur),
-                    React.createElement('td',null, fmt.format(vals.invest)),
-                    React.createElement('td',{colSpan:3}),
-                    React.createElement('td',null, fmt.format(vals.now)),
-                    React.createElement('td',null, [fmt.format(pl),' ',React.createElement('span',{className:'pill '+(pl>=0?'gain':'loss')}, (pl>=0?'+':'')+pct.toFixed(2)+'%')]),
-                    React.createElement('td',{colSpan:2})
-                  );
-                })
-              ) : null
+              )
             )
           )
         )
@@ -620,28 +611,28 @@
     );
   }
 
-  // Seasonal page with overlays
-  function SeasonalPage({useProxy, theme}){
-    const prox = proxWrap(useProxy);
+  function SeasonalPage({ theme }){
     const containerRef = useRef(null);
     const chartRef = useRef(null);
     const mainSeriesRef = useRef(null);
     const overlaySeriesRefs = useRef([]);
     const [quote,setQuote] = useState('LKR');
-    const [preset,setPreset] = useState('1Y'); // 1Y, 6M, 3M, 1M
-    const [overlayYears,setOverlayYears] = useState(3); // 0..4
+    const [preset,setPreset] = useState('1Y');
+    const [overlayYears,setOverlayYears] = useState(3);
     const [normalize,setNormalize] = useState(true);
     const [busy,setBusy] = useState(false);
     const [status,setStatus] = useState('');
+    const loadSeq = useRef(0);
 
     const presets = { '1Y':{days:365}, '6M':{days:183}, '3M':{days:92}, '1M':{days:31} };
 
-    function makeChart(){
-      if(chartRef.current) chartRef.current.remove();
+    function ensureChart(){
+      if(chartRef.current) return;
       const gridC = 'rgba(128,128,128,0.12)';
       const textColor = color('--ink') || '#fff';
+      const h = Math.max(300, Math.min(window.innerHeight*0.6, 560));
       const c = LightweightCharts.createChart(containerRef.current, {
-        height: 480,
+        height: h,
         layout: { background: { color: 'transparent' }, textColor },
         rightPriceScale: { borderVisible:false },
         timeScale: { borderVisible:false },
@@ -656,19 +647,50 @@
         lineColor: theme==='dark' ? '#5aa9ff' : '#1a5fb8'
       });
       mainSeriesRef.current = area;
-      overlaySeriesRefs.current.forEach(s => s && c.removeSeries(s));
-      overlaySeriesRefs.current = [];
     }
+
+    useEffect(()=>{
+      return ()=>{
+        if(chartRef.current){ try{ chartRef.current.remove(); }catch(_){} }
+        chartRef.current = null;
+        mainSeriesRef.current = null;
+        overlaySeriesRefs.current = [];
+      };
+    },[]);
+
+    useEffect(()=>{
+      if (!chartRef.current || !mainSeriesRef.current) return;
+      const gridC = 'rgba(128,128,128,0.12)';
+      const textColor = color('--ink') || '#000';
+      chartRef.current.applyOptions({
+        layout: { background: { color: 'transparent' }, textColor },
+        grid: { vertLines:{ color:gridC }, horzLines:{ color:gridC } }
+      });
+      mainSeriesRef.current.applyOptions({
+        topColor: theme==='dark' ? 'rgba(90,169,255,0.20)' : 'rgba(26,95,184,0.20)',
+        lineColor: theme==='dark' ? '#5aa9ff' : '#1a5fb8'
+      });
+    }, [theme]);
 
     async function fetchDailyAll(startMs, endMs){
       let out = [];
       let cursor = startMs;
+      async function fetchArray(url){
+        const r = await fetch(url, { cache: 'no-store' });
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        const j = await r.json();
+        if(!Array.isArray(j)) throw new Error('Unexpected');
+        return j;
+      }
       while(cursor < endMs - 1){
-        const url = prox(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&startTime=${cursor}&endTime=${endMs}&limit=1000`);
-        const r = await fetch(url, {cache:'no-store'});
-        if(!r.ok) break;
-        const a = await r.json();
-        if(!Array.isArray(a) || a.length===0) break;
+        const rawUrl = `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&startTime=${cursor}&endTime=${endMs}&limit=1000`;
+        let a = null;
+        try{
+          a = await fetchArray(rawUrl);
+        }catch(e){
+          break;
+        }
+        if(!a.length) break;
         out = out.concat(a);
         const last = a[a.length-1][0];
         if(last<=cursor) break;
@@ -681,7 +703,7 @@
     async function fetchTimeseriesFX(cur, startISO, endISO){
       if(cur==='USD' || cur==='USDT') return { map:{}, latest:1, src:'peg' };
       try{
-        const u = prox(`https://api.exchangerate.host/timeseries?base=USD&symbols=${cur}&start_date=${startISO}&end_date=${endISO}`);
+        const u = `https://api.exchangerate.host/timeseries?base=USD&symbols=${cur}&start_date=${startISO}&end_date=${endISO}`;
         const r = await fetch(u,{cache:'no-store'});
         if(r.ok){
           const j = await r.json();
@@ -691,8 +713,7 @@
         }
       }catch(_){}
       try{
-        const u2 = prox('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
-        const r2 = await fetch(u2,{cache:'no-store'});
+        const r2 = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json',{cache:'no-store'});
         if(r2.ok){
           const j2 = await r2.json();
           const rate = j2?.usd?.[cur.toLowerCase()];
@@ -701,6 +722,7 @@
       }catch(_){}
       return { map:{}, latest:1, src:'fallback' };
     }
+
     function pickFx(fx, iso){
       if(!fx) return 1;
       if(fx.map && fx.map[iso]) return fx.map[iso];
@@ -714,7 +736,11 @@
     async function render(){
       setBusy(true);
       setStatus('loading…');
+      const seq = ++loadSeq.current;
       try{
+        if (!window.LightweightCharts) { setStatus('chart library not ready'); setBusy(false); return; }
+        if (!containerRef.current) { setStatus('chart container not ready'); setBusy(false); return; }
+
         const now = Date.now();
         const spanDays = presets[preset].days;
         const start = now - spanDays*86400e3;
@@ -726,6 +752,14 @@
           fetchTimeseriesFX(quote, new Date(now - (overlayYears+1)*370*86400e3).toISOString().slice(0,10), endISO)
         ]);
 
+        if (seq !== loadSeq.current) return;
+
+        if (!dailyAll || dailyAll.length === 0) {
+          setStatus('no price data available right now');
+          setBusy(false);
+          return;
+        }
+
         const pts = dailyAll.map(k => {
           const t = k[0];
           const iso = new Date(t).toISOString().slice(0,10);
@@ -734,15 +768,18 @@
           return { t, iso, v: close*rate };
         });
 
-        makeChart();
+        ensureChart();
 
         const mainPts = pts.filter(p => p.t >= start).map(p => ({ time: Math.floor(p.t/1000), value: p.v }));
         const mainStartVal = mainPts.length ? mainPts[0].value : 1;
         mainSeriesRef.current.setData(mainPts);
         chartRef.current.timeScale().fitContent();
 
-        overlaySeriesRefs.current.forEach(s => s && chartRef.current.removeSeries(s));
-        overlaySeriesRefs.current = [];
+        if (overlaySeriesRefs.current && overlaySeriesRefs.current.length) {
+          overlaySeriesRefs.current.forEach(s => { try { chartRef.current.removeSeries(s); } catch(_){} });
+          overlaySeriesRefs.current = [];
+        }
+
         const palette = theme==='dark'
           ? ['#66d38f','#ffd166','#ff6b6b','#9aa6ff']
           : ['#189c63','#b08b00','#c33b3b','#4154ff'];
@@ -775,26 +812,38 @@
           overlaySeriesRefs.current.push(s);
         }
 
-        setStatus(`BTC/${quote} • ${preset} • overlays ${overlayYears}${normalize?' normalized':''} • FX: ${fx.src}`);
+        setStatus(`BTC/${quote} • ${preset} • overlays ${overlayYears}${normalize?' normalized':''}`);
       }catch(e){
-        setStatus('error loading');
+        if (seq === loadSeq.current) setStatus('error loading');
       }finally{
-        setBusy(false);
+        if (seq === loadSeq.current) setBusy(false);
       }
     }
 
     useEffect(()=>{ render(); }, [quote, preset, overlayYears, normalize, theme]);
+
     useEffect(()=>{
-      function rebuild(){ if(chartRef.current){ chartRef.current.applyOptions({ width: containerRef.current.clientWidth }); } }
+      function rebuild(){
+        if(chartRef.current && containerRef.current){
+          const h = Math.max(300, Math.min(window.innerHeight*0.6, 560));
+          chartRef.current.applyOptions({ width: containerRef.current.clientWidth, height: h });
+        }
+      }
       const ro = new ResizeObserver(rebuild);
-      ro.observe(containerRef.current);
-      return ()=>ro.disconnect();
+      if(containerRef.current) ro.observe(containerRef.current);
+      window.addEventListener('orientationchange', rebuild);
+      window.addEventListener('resize', rebuild);
+      return ()=>{
+        ro.disconnect();
+        window.removeEventListener('orientationchange', rebuild);
+        window.removeEventListener('resize', rebuild);
+      }
     },[]);
 
     return React.createElement('section',{className:'card'},
       React.createElement('div',{className:'pad'},
         React.createElement('h2',null,'Seasonal chart'),
-        React.createElement('p',{className:'lead'},'Coinbase-style area with past-years overlays. You can normalize overlays. Text is light in dark mode.'),
+        React.createElement('p',{className:'lead'},'Coinbase style area with past years overlays. You can normalize overlays.'),
         React.createElement('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap',alignItems:'center',marginBottom:'8px'}},
           React.createElement('label',null,'Quote'),
           React.createElement('select',{value:quote,onChange:e=>setQuote(e.target.value)}, FIATS.map(f=>React.createElement('option',{key:f,value:f},f))),
@@ -812,19 +861,18 @@
           React.createElement('span',{className:'mono muted'}, busy?'loading…':status)
         ),
         React.createElement('div',{className:'chartwrap'},
-          React.createElement('div',{ref:containerRef,style:{height:'480px',width:'100%'}})
+          React.createElement('div',{ref:containerRef,className:'chart-container'})
         )
       )
     );
   }
 
-  // TradingView advanced chart page
   function TradingViewChart({symbol, theme, styleNum}){
     const ref = useRef(null);
     useEffect(()=>{
       if(!window.TradingView || !ref.current) return;
       const id = 'tv_'+Math.random().toString(36).slice(2);
-      ref.current.innerHTML = '<div id="'+id+'" style="height:560px;"></div>';
+      ref.current.innerHTML = '<div id="'+id+'" class="tv-container"></div>';
       new window.TradingView.widget({
         symbol,
         interval: "60",
@@ -832,7 +880,7 @@
         autosize: true,
         timezone: "Etc/UTC",
         theme: theme==='dark' ? "dark" : "light",
-        style: String(styleNum), // 1 candles, 2 bars, 3 line, 8 area
+        style: String(styleNum),
         locale: "en",
         hide_side_toolbar: false,
         allow_symbol_change: true,
@@ -844,10 +892,11 @@
         toolbar_bg: getComputedStyle(document.documentElement).getPropertyValue('--chart-bg').trim()||"#0f1520",
       });
     },[symbol, theme, styleNum]);
-    return React.createElement('div',{className:'chartwrap',style:{height:'560px'}},
+    return React.createElement('div',{className:'chartwrap'},
       React.createElement('div',{ref,style:{height:'100%',width:'100%'}})
     );
   }
+
   function PricesPage({theme}){
     const [exchange,setExchange] = useState('BINANCE:BTCUSDT');
     const [styleNum,setStyleNum] = useState(1);
@@ -877,34 +926,47 @@
       React.createElement('section',{className:'card'},
         React.createElement('div',{className:'pad'},
           React.createElement('h2',null,'About and tips'),
-          React.createElement('p',{className:'lead'},'Seasonal shows Coinbase-style charts with overlays aligned to the current window. Prices uses TradingView with indicators. Fee calc gives sat per vB in your currency and a full acquisition estimator.')
+          React.createElement('p',{className:'lead'},'Seasonal shows Coinbase style overlays. Prices uses TradingView. Fee calc covers sat per vB and an acquisition estimator.')
         )
       )
     );
   }
 
-  // App
   function App(){
     const [theme,setTheme] = useState(localStorage.getItem('btctheme')||'dark');
     useEffect(()=>{ document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('btctheme',theme); },[theme]);
 
     const [tab,setTab] = useState('seasonal'); // seasonal | prices | calc | pnl | about
     const [fiat,setFiat] = useState('LKR');
-    const [useProxy,setUseProxy] = useState(false);
 
-    const { btcUsd, usdRates, fees, updated, status, refresh, prox } = useLiveData(useProxy);
+    const { btcUsd, usdRates, fees, updated, status, refresh } = useLiveData();
+
+    useEffect(()=>{
+      const side = document.querySelector('.sidebar');
+      const scrim = document.getElementById('scrim');
+      function closeSide(){ side.classList.remove('open'); scrim.classList.remove('show'); }
+      function onEsc(e){ if(e.key==='Escape') closeSide(); }
+      scrim.addEventListener('click', closeSide);
+      window.addEventListener('keydown', onEsc);
+      return ()=>{ scrim.removeEventListener('click', closeSide); window.removeEventListener('keydown', onEsc); };
+    },[]);
+
+    function toggleSidebar(){
+      const side = document.querySelector('.sidebar');
+      const scrim = document.getElementById('scrim');
+      const willOpen = !side.classList.contains('open');
+      side.classList.toggle('open', willOpen);
+      scrim.classList.toggle('show', willOpen);
+    }
 
     return (
       React.createElement('div',{className:'app'},
         React.createElement('div',{className:'topbar'},
-          React.createElement('button',{className:'hamb',onClick:()=>document.querySelector('.sidebar').classList.toggle('collapsed')}, '≡'),
+          React.createElement('button',{className:'hamb',onClick:toggleSidebar, title:'Menu'}, '≡'),
           React.createElement('div',null,'BTC Tools Pro'),
           React.createElement('div',{className:'spacer'}),
           React.createElement('div',{className:'controls'},
             React.createElement('select',{value:fiat,onChange:e=>setFiat(e.target.value)}, FIATS.map(c=>React.createElement('option',{key:c,value:c},c))),
-            React.createElement('label',{className:'switch'},
-              React.createElement('input',{type:'checkbox',checked:useProxy,onChange:e=>setUseProxy(e.target.checked)}),' CORS proxy'
-            ),
             React.createElement('label',{className:'switch'},
               React.createElement('input',{type:'checkbox',checked:theme==='dark',onChange:e=>setTheme(e.target.checked?'dark':'light')}),' Dark mode'
             )
@@ -915,7 +977,7 @@
           React.createElement('div',{className:'side-brand'}, React.createElement('span',{className:'dot'}),' ', React.createElement('span',null,'BTC Suite')),
           React.createElement('div',{className:'side-group'},'Navigation'),
           ['seasonal','prices','calc','pnl','about'].map(k =>
-            React.createElement('button',{key:k,className:'navbtn '+(tab===k?'active':''),onClick:()=>setTab(k)},
+            React.createElement('button',{key:k,className:'navbtn '+(tab===k?'active':''),onClick:()=>{ setTab(k); document.getElementById('scrim').classList.remove('show'); document.querySelector('.sidebar').classList.remove('open'); }},
               k==='seasonal'?'Seasonal chart': k==='prices'?'Prices (TradingView)': k==='calc'?'Fee calculator': k==='pnl'?'PnL':'About'
             )
           )
@@ -931,15 +993,15 @@
             ),
             React.createElement('p',{className:'lead'},
               tab==='seasonal'
-                ? 'Coinbase-style area with past-years overlays. Choose LKR, USD, USDT and more.'
+                ? 'Coinbase style area with past years overlays.'
                 : tab==='prices'
-                  ? 'Superb TradingView chart with candles, bars, volume, and indicators.'
+                  ? 'TradingView chart with candles, bars, volume, and indicators.'
                   : tab==='pnl'
-                    ? 'Multiple records with per-row FX source.'
-                    : 'Sat per vB calc in your currency plus P2P to hot-wallet estimator.'
+                    ? 'Multiple records with per row FX source.'
+                    : 'Sat per vB calc in your currency plus P2P to hot wallet estimator.'
             ),
             tab==='seasonal'
-              ? React.createElement(SeasonalPage,{useProxy, theme})
+              ? React.createElement(SeasonalPage,{theme})
               : tab==='prices'
                 ? React.createElement(PricesPage,{theme})
                 : tab==='calc'
@@ -956,7 +1018,7 @@
                       )
                     )
                   : tab==='pnl'
-                    ? React.createElement(PnlTool,{btcUsd, usdRates, prox})
+                    ? React.createElement(PnlTool,{btcUsd, usdRates})
                     : React.createElement(About,null)
           )
         )
